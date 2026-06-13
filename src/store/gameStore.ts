@@ -393,11 +393,17 @@ export const useGameStore = create<GameState>()(
           }
 
           let staffPersonalityBonus = 0;
+          let staffPersonalityPenalty = 0;
           if (bed.assignedStaffId) {
             const assignedStaff = s.staff.find(st => st.id === bed.assignedStaffId);
-            if (assignedStaff && assignedStaff.goodWithPersonalities.includes(beast.personality)) {
-              staffPersonalityBonus = 5;
-              comfortMsg += " 👩‍⚕️护理员适配度高，效果更佳！";
+            if (assignedStaff) {
+              if (assignedStaff.goodWithPersonalities.includes(beast.personality)) {
+                staffPersonalityBonus = 5;
+                comfortMsg += " 👩‍⚕️护理员适配度高，效果更佳！";
+              } else {
+                staffPersonalityPenalty = 3;
+                comfortMsg += " 😐护理员与灵兽性格不太合拍，收益稍减...";
+              }
             }
           }
 
@@ -405,7 +411,7 @@ export const useGameStore = create<GameState>()(
           const satMult = beast.satisfaction / 100;
           const reputationBonus = s.reputation / 100;
           const baseRevenue = Math.floor(breed.baseFees * severityMult * (0.8 + 0.4 * satMult) * (1 + reputationBonus * 0.3));
-          const revenue = Math.floor(baseRevenue * comfortRevenueMult) + staffPersonalityBonus;
+          const revenue = Math.max(1, Math.floor(baseRevenue * comfortRevenueMult) + staffPersonalityBonus - staffPersonalityPenalty);
           let repGain = Math.ceil(3 * severityMult * satMult) + comfortRepBonus;
           const trustGain = Math.ceil(10 * severityMult * satMult) + (comfortRevenueMult > 1 ? 3 : 0);
 
@@ -474,11 +480,20 @@ export const useGameStore = create<GameState>()(
           let comfortFailMsg = "";
           if (selectedComfort && personality) {
             if (personality.dislikedComfort.includes(selectedComfort)) {
-              failPenaltyMult = 1.3;
+              failPenaltyMult *= 1.3;
               comfortFailMsg = " 安抚不当加重了灵兽的抵触情绪，惩罚加重！";
             } else if (personality.preferredComfort.includes(selectedComfort)) {
-              failPenaltyMult = 0.8;
+              failPenaltyMult *= 0.8;
               comfortFailMsg = " 虽然治疗失败，但安抚得当，主人并未过分苛责。";
+            }
+          }
+
+          // 护理员性格不适配加重惩罚
+          if (bed.assignedStaffId) {
+            const assignedStaff = s.staff.find(st => st.id === bed.assignedStaffId);
+            if (assignedStaff && !assignedStaff.goodWithPersonalities.includes(beast.personality)) {
+              failPenaltyMult *= 1.2;
+              comfortFailMsg += " 护理员与灵兽性格不合，主人颇有微词...";
             }
           }
 
@@ -637,9 +652,13 @@ export const useGameStore = create<GameState>()(
               if (b.assignedStaffId) {
                 const stf = state.staff.find(x => x.id === b.assignedStaffId);
                 finalRate += (stf?.skillLevel ?? 1) * 5;
-                // 员工与性格适配加成
-                if (b.beastSnapshot?.personality && stf?.goodWithPersonalities.includes(b.beastSnapshot.personality)) {
-                  finalRate += 8;
+                // 员工与性格适配
+                if (b.beastSnapshot?.personality && stf) {
+                  if (stf.goodWithPersonalities.includes(b.beastSnapshot.personality)) {
+                    finalRate += 8;
+                  } else {
+                    finalRate -= 5;
+                  }
                 }
               }
               // 安抚方式加成/减成

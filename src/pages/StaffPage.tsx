@@ -1,6 +1,6 @@
-import { Users, Award, Briefcase, Clock, DollarSign, PlusCircle } from "lucide-react";
+import { Users, Award, Briefcase, Clock, DollarSign, PlusCircle, Heart } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
-import { BREEDS } from "@/data/gameData";
+import { BREEDS, PERSONALITIES, PERSONALITY_NAMES, PERSONALITY_COLORS } from "@/data/gameData";
 import type { Bed, PersonalityType } from "@/types/game";
 
 const STATUS_INFO = {
@@ -128,6 +128,25 @@ export default function StaffPage() {
                     <div className="p-2 rounded-lg bg-white/60 border border-clinic-border/30">
                       <div className="text-gray-500">日薪</div>
                       <div className="text-clinic-amber font-semibold text-sm">💰 {s.dailyWage}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 p-2 rounded-lg bg-purple-50 border border-purple-200">
+                    <div className="text-[11px] text-gray-600 mb-1.5 flex items-center gap-1">
+                      <Heart className="w-3 h-3 text-pink-500" /> 擅长性格
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {s.goodWithPersonalities.map(p => (
+                        <span
+                          key={p}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border ${PERSONALITY_COLORS[p]}`}
+                        >
+                          {PERSONALITIES[p]?.emoji} {PERSONALITY_NAMES[p]}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="text-[9px] text-gray-400 mt-1">
+                      适配性格 +8%成功率 · 不适配 -5%成功率
                     </div>
                   </div>
 

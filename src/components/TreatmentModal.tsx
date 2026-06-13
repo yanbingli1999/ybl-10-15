@@ -376,7 +376,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
               <Users className="w-4 h-4 text-clinic-light-jade" />
               护理员安排
               <span className="ml-auto text-[10px] text-gray-500">
-                加速 30% · 成功率 +5~10%
+                加速 30% · 适配+8% / 不适配-5%
               </span>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
@@ -388,6 +388,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
               {idleStaff.map(s => {
                 const sel = selectedStaff === s.id;
                 const isGoodMatch = s.goodWithPersonalities.includes(beast.personality);
+                const isBadMatch = !isGoodMatch;
                 return (
                   <button
                     key={s.id}
@@ -397,10 +398,10 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
                       sel
                         ? isGoodMatch
                           ? "border-green-400 bg-green-100 shadow-sm"
-                          : "border-clinic-light-jade bg-clinic-light-jade/10 shadow-sm"
+                          : "border-red-400 bg-red-100 shadow-sm"
                         : isGoodMatch
                         ? "border-green-200 bg-green-50 hover:border-green-400"
-                        : "border-clinic-border/50 bg-white hover:border-clinic-light-jade/60"
+                        : "border-red-200 bg-red-50 hover:border-red-400"
                     }`}
                   >
                     <div className="flex items-center gap-1.5">
@@ -409,16 +410,22 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
                         <div className="text-xs font-semibold text-clinic-deep truncate flex items-center gap-1">
                           {s.name}
                           {isGoodMatch && <span className="text-[9px] text-green-600">💚适配</span>}
+                          {isBadMatch && <span className="text-[9px] text-red-600">⚠️不适配</span>}
                         </div>
                         <div className="text-[9px] text-gray-500">Lv.{s.skillLevel}</div>
                       </div>
                     </div>
-                    <div className="mt-1 text-[9px] text-gray-500">
-                      成功率 +{s.skillLevel * 5}%{isGoodMatch ? " +8%" : ""} · 日薪 {s.dailyWage}
+                    <div className={`mt-1 text-[9px] ${isGoodMatch ? "text-green-600" : "text-red-600"}`}>
+                      成功率 +{s.skillLevel * 5}%{isGoodMatch ? " +8%" : " -5%"} · 日薪 {s.dailyWage}
                     </div>
                     {isGoodMatch && (
                       <div className="mt-0.5 text-[9px] text-green-600">
                         擅长{PERSONALITY_NAMES[beast.personality]}性格
+                      </div>
+                    )}
+                    {isBadMatch && (
+                      <div className="mt-0.5 text-[9px] text-red-600">
+                        不擅长{PERSONALITY_NAMES[beast.personality]}性格，失败惩罚加重
                       </div>
                     )}
                   </button>
