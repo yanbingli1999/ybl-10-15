@@ -5,8 +5,9 @@ import {
   BREEDS, HERBS, PRESCRIPTIONS,
   SEVERITY_NAMES, SEVERITY_COLORS, DISEASE_NAMES,
   ELEMENT_EMOJI, ELEMENT_NAMES,
+  PERSONALITIES, COMFORT_METHODS, PERSONALITY_NAMES, PERSONALITY_COLORS,
 } from "@/data/gameData";
-import type { Bed, DiseaseType } from "@/types/game";
+import type { Bed, DiseaseType, ComfortType } from "@/types/game";
 
 interface TreatmentModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
   const [playerDiagnosis, setPlayerDiagnosis] = useState<DiseaseType | null>(null);
   const [showAllDiseases, setShowAllDiseases] = useState(false);
+  const [selectedComfort, setSelectedComfort] = useState<ComfortType | null>(null);
 
   const beast = useMemo(() => queue.find(b => b.id === selectedBeastId), [queue, selectedBeastId]);
   const breed = beast ? BREEDS.find(b => b.id === beast.breedId) : null;
@@ -56,6 +58,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
       setSelectedStaff(null);
       setPlayerDiagnosis(null);
       setShowAllDiseases(false);
+      setSelectedComfort(null);
     }
   }, [open, selectedBeastId]);
 
@@ -89,7 +92,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
 
   const handleSubmit = () => {
     if (!canSubmit || !targetBed) return;
-    assignBedAndTreat(beast.id, targetBed.id, selectedStaff, selectedHerbs, playerDiagnosis);
+    assignBedAndTreat(beast.id, targetBed.id, selectedStaff, selectedHerbs, playerDiagnosis, selectedComfort);
     onClose();
   };
 
@@ -113,6 +116,9 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
             <div className="mt-1 flex items-center gap-2 flex-wrap text-xs">
               <span className={`tag border ${SEVERITY_COLORS[beast.severity]}`}>
                 {SEVERITY_NAMES[beast.severity]}
+              </span>
+              <span className={`tag border ${PERSONALITY_COLORS[beast.personality]}`}>
+                {PERSONALITIES[beast.personality]?.emoji} {PERSONALITY_NAMES[beast.personality]}
               </span>
               <span className="text-gray-500">💝 {beast.satisfaction}</span>
               <span className="text-gray-500">⏳ 等{beast.waitHours}h</span>
@@ -206,6 +212,82 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
                 {showAllDiseases ? "收起" : "查看更多可能"}
                 <ChevronDown className={`w-3 h-3 transition-transform ${showAllDiseases ? "rotate-180" : ""}`} />
               </button>
+            </div>
+          </div>
+
+          {/* 性格与安抚方式 */}
+          <div className="card p-3 border-purple-200">
+            <div className="font-display text-sm text-clinic-deep flex items-center gap-1.5 mb-2">
+              <span className="text-lg">💫</span>
+              性格特点 — 安抚方式
+              <span className="ml-auto text-[10px] text-gray-400">
+                合适的安抚可提高成功率和收益
+              </span>
+            </div>
+
+            <div className="mb-3 p-2.5 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100">
+              <div className="flex items-start gap-2">
+                <span className="text-2xl">{PERSONALITIES[beast.personality]?.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-clinic-deep">
+                    {PERSONALITY_NAMES[beast.personality]}性格
+                  </div>
+                  <div className="text-[11px] text-gray-600 mt-0.5">
+                    {PERSONALITIES[beast.personality]?.description}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className="text-[10px] text-gray-500">💚 喜欢：</span>
+                    {PERSONALITIES[beast.personality]?.preferredComfort.map(c => (
+                      <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                        {COMFORT_METHODS[c]?.emoji} {COMFORT_METHODS[c]?.name}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    <span className="text-[10px] text-gray-500">💔 讨厌：</span>
+                    {PERSONALITIES[beast.personality]?.dislikedComfort.map(c => (
+                      <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                        {COMFORT_METHODS[c]?.emoji} {COMFORT_METHODS[c]?.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-gray-500 mb-2 font-medium">选择一种安抚方式：</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {Object.values(COMFORT_METHODS).map(comfort => {
+                const isSelected = selectedComfort === comfort.id;
+                const isPreferred = PERSONALITIES[beast.personality]?.preferredComfort.includes(comfort.id);
+                const isDisliked = PERSONALITIES[beast.personality]?.dislikedComfort.includes(comfort.id);
+                return (
+                  <button
+                    key={comfort.id}
+                    onClick={() => setSelectedComfort(isSelected ? null : comfort.id)}
+                    disabled={!targetBed}
+                    className={`p-2 rounded-lg border text-center transition-all disabled:opacity-50 ${
+                      isSelected
+                        ? isPreferred
+                          ? "border-green-400 bg-green-100 shadow-sm"
+                          : isDisliked
+                          ? "border-red-400 bg-red-100 shadow-sm"
+                          : "border-clinic-jade bg-clinic-jade/10 shadow-sm"
+                        : isPreferred
+                        ? "border-green-200 bg-green-50 hover:border-green-400"
+                        : isDisliked
+                        ? "border-red-200 bg-red-50 hover:border-red-400"
+                        : "border-clinic-border/50 bg-white hover:border-clinic-jade/50"
+                    }`}
+                    title={comfort.description}
+                  >
+                    <div className="text-xl">{comfort.emoji}</div>
+                    <div className="text-[10px] font-medium text-clinic-deep mt-0.5">{comfort.name}</div>
+                    {isPreferred && <div className="text-[9px] text-green-600 mt-0.5">✨推荐</div>}
+                    {isDisliked && <div className="text-[9px] text-red-600 mt-0.5">⚠️避免</div>}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -305,6 +387,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
               )}
               {idleStaff.map(s => {
                 const sel = selectedStaff === s.id;
+                const isGoodMatch = s.goodWithPersonalities.includes(beast.personality);
                 return (
                   <button
                     key={s.id}
@@ -312,20 +395,32 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
                     disabled={!targetBed}
                     className={`p-2 rounded-lg border text-left transition-all disabled:opacity-50 ${
                       sel
-                        ? "border-clinic-light-jade bg-clinic-light-jade/10 shadow-sm"
+                        ? isGoodMatch
+                          ? "border-green-400 bg-green-100 shadow-sm"
+                          : "border-clinic-light-jade bg-clinic-light-jade/10 shadow-sm"
+                        : isGoodMatch
+                        ? "border-green-200 bg-green-50 hover:border-green-400"
                         : "border-clinic-border/50 bg-white hover:border-clinic-light-jade/60"
                     }`}
                   >
                     <div className="flex items-center gap-1.5">
                       <span className="text-xl">{s.emoji}</span>
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-clinic-deep truncate">{s.name}</div>
+                        <div className="text-xs font-semibold text-clinic-deep truncate flex items-center gap-1">
+                          {s.name}
+                          {isGoodMatch && <span className="text-[9px] text-green-600">💚适配</span>}
+                        </div>
                         <div className="text-[9px] text-gray-500">Lv.{s.skillLevel}</div>
                       </div>
                     </div>
                     <div className="mt-1 text-[9px] text-gray-500">
-                      成功率 +{s.skillLevel * 5}% · 日薪 {s.dailyWage}
+                      成功率 +{s.skillLevel * 5}%{isGoodMatch ? " +8%" : ""} · 日薪 {s.dailyWage}
                     </div>
+                    {isGoodMatch && (
+                      <div className="mt-0.5 text-[9px] text-green-600">
+                        擅长{PERSONALITY_NAMES[beast.personality]}性格
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -364,6 +459,14 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
                 <span className="text-gray-300">·</span>
                 <div className="text-gray-600 text-[11px]">
                   👩‍⚕️ {staff.find(s => s.id === selectedStaff)?.name}
+                </div>
+              </>
+            )}
+            {selectedComfort && (
+              <>
+                <span className="text-gray-300">·</span>
+                <div className="text-gray-600 text-[11px]">
+                  {COMFORT_METHODS[selectedComfort]?.emoji} {COMFORT_METHODS[selectedComfort]?.name}
                 </div>
               </>
             )}

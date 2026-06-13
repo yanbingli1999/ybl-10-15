@@ -26,7 +26,9 @@ import {
   NOTES_SUCCESS,
   NOTES_FAIL,
   DISEASE_NAMES,
+  PERSONALITIES,
 } from "@/data/gameData";
+import type { PersonalityType, ComfortType } from "@/types/game";
 
 const DISEASE_TYPES: DiseaseType[] = [
   "fever", "cold", "poisoning", "fatigue", "fracture",
@@ -41,6 +43,8 @@ const SEVERITIES: { sev: Severity; hours: number }[] = [
 ];
 
 const WEATHERS: WeatherType[] = ["sunny", "cloudy", "rainy", "stormy", "misty"];
+
+const PERSONALITY_TYPES: PersonalityType[] = ["timid", "grumpy", "clingy", "greedy", "cold", "lively"];
 
 function uid(prefix = "id"): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -80,12 +84,15 @@ export function generateRandomBeast(day: number, time: number): Beast {
     satisfaction: 100,
     ownerName: rand(OWNER_NAMES),
     arrivedAt: time,
+    personality: rand(PERSONALITY_TYPES),
   };
 }
 
-function calcTreatmentHours(severity: Severity, staffBoost: boolean): number {
+function calcTreatmentHours(severity: Severity, staffBoost: boolean, personality: PersonalityType): number {
   const base = SEVERITIES.find(s => s.sev === severity)?.hours ?? 8;
-  return staffBoost ? Math.ceil(base * 0.7) : base;
+  const personalityMult = PERSONALITIES[personality]?.treatmentTimeMult ?? 1.0;
+  const hours = base * personalityMult;
+  return staffBoost ? Math.ceil(hours * 0.7) : Math.ceil(hours);
 }
 
 export function guessDiseaseFromSymptoms(symptoms: string[]): { disease: DiseaseType; matchRate: number }[] {
@@ -126,7 +133,7 @@ export interface GameState {
   selectBeast: (id: string | null) => void;
   selectBed: (id: string | null) => void;
   dismissBeast: (id: string) => void;
-  assignBedAndTreat: (beastId: string, bedId: string, staffId: string | null, herbIds: string[], playerDiagnosis: DiseaseType | null) => void;
+  assignBedAndTreat: (beastId: string, bedId: string, staffId: string | null, herbIds: string[], playerDiagnosis: DiseaseType | null, selectedComfort: ComfortType | null) => void;
   purchaseHerb: (herbId: string, qty: number) => void;
   collectFromBed: (bedId: string) => void;
   addNotification: (type: Notification["type"], message: string) => void;
@@ -151,6 +158,8 @@ function createInitialBeds(): Bed[] {
     currentPrescriptionHerbs: [],
     playerDiagnosis: null,
     startedAt: null,
+    selectedComfort: null,
+    comfortBonusApplied: false,
     beastSnapshot: null,
   }));
 }
@@ -256,7 +265,7 @@ export const useGameStore = create<GameState>()(
         get().addNotification("success", `采购 ${herb.name} x${qty}，花费${totalCost}金`);
       },
 
-      assignBedAndTreat: (beastId, bedId, staffId, herbIds, playerDiagnosis) => {
+      assignBedAndTreat: (beastId, bedId, staffId, herbIds, playerDiagnosis, selectedComfort) => {
         const s = get();
         const beast = s.waitingQueue.find(b => b.id === beastId);
         const bed = s.beds.find(b => b.id === bedId);
@@ -285,11 +294,25 @@ export const useGameStore = create<GameState>()(
           return sum + (h?.price ?? 0);
         }, 0);
 
+        const personality = PERSONALITIES[beast.personality];
+        let comfortSatisfactionBonus = 0;
+        let comfortMsg = "";
+        if (selectedComfort && personality) {
+          if (personality.preferredComfort.includes(selectedComfort)) {
+            comfortSatisfactionBonus = 15;
+            comfortMsg = " 安抚得当，心情愉悦！";
+          } else if (personality.dislikedComfort.includes(selectedComfort)) {
+            comfortSatisfactionBonus = -15;
+            comfortMsg = " 安抚方式不当，灵兽有些抗拒...";
+          }
+        }
+
         const hasStaff = !!staffId;
         const staffSkillBonus = staffId ? (s.staff.find(x => x.id === staffId)?.skillLevel ?? 1) * 5 : 0;
         void staffSkillBonus;
 
-        const totalHours = calcTreatmentHours(beast.severity, hasStaff);
+        const totalHours = calcTreatmentHours(beast.severity, hasStaff, beast.personality);
+        const adjustedSatisfaction = Math.min(100, Math.max(0, beast.satisfaction + comfortSatisfactionBonus));
 
         const newBeds = s.beds.map(b => b.id === bedId ? {
           ...b,
@@ -302,14 +325,17 @@ export const useGameStore = create<GameState>()(
           currentPrescriptionHerbs: [...herbIds],
           playerDiagnosis,
           startedAt: s.currentTime,
+          selectedComfort,
+          comfortBonusApplied: comfortSatisfactionBonus > 0,
           beastSnapshot: {
             id: beast.id,
             breedId: beast.breedId,
             name: beast.name,
             disease: beast.disease,
             severity: beast.severity,
-            satisfaction: beast.satisfaction,
+            satisfaction: adjustedSatisfaction,
             symptoms: beast.symptoms,
+            personality: beast.personality,
           },
         } : b);
 
@@ -328,7 +354,7 @@ export const useGameStore = create<GameState>()(
           selectedBeastId: null,
         }));
         get()._addTransaction("expense", "药材消耗", herbsCost, `${beast.name} 治疗消耗药材`);
-        get().addNotification("info", `${beast.name} 已入住 ${bed.name}，预计${totalHours}小时治疗`);
+        get().addNotification("info", `${beast.name} 已入住 ${bed.name}，预计${totalHours}小时治疗${comfortMsg}`);
       },
 
       collectFromBed: (bedId) => {
@@ -348,12 +374,40 @@ export const useGameStore = create<GameState>()(
         const breed = BREEDS.find(b => b.id === (beast?.breedId || ""));
 
         if (bed.result === "success" && beast && breed) {
+          const personality = PERSONALITIES[beast.personality];
+          const selectedComfort = bed.selectedComfort;
+
+          let comfortRevenueMult = 1.0;
+          let comfortRepBonus = 0;
+          let comfortMsg = "";
+          if (selectedComfort && personality) {
+            if (personality.preferredComfort.includes(selectedComfort)) {
+              comfortRevenueMult = 1.2;
+              comfortRepBonus = 2;
+              comfortMsg = " 💝安抚得当，主人额外感谢！";
+            } else if (personality.dislikedComfort.includes(selectedComfort)) {
+              comfortRevenueMult = 0.85;
+              comfortRepBonus = -1;
+              comfortMsg = " 😟安抚不当，主人略有微词...";
+            }
+          }
+
+          let staffPersonalityBonus = 0;
+          if (bed.assignedStaffId) {
+            const assignedStaff = s.staff.find(st => st.id === bed.assignedStaffId);
+            if (assignedStaff && assignedStaff.goodWithPersonalities.includes(beast.personality)) {
+              staffPersonalityBonus = 5;
+              comfortMsg += " 👩‍⚕️护理员适配度高，效果更佳！";
+            }
+          }
+
           const severityMult = { mild: 1, moderate: 1.4, severe: 1.8, critical: 2.3 }[beast.severity] || 1;
           const satMult = beast.satisfaction / 100;
           const reputationBonus = s.reputation / 100;
-          const revenue = Math.floor(breed.baseFees * severityMult * (0.8 + 0.4 * satMult) * (1 + reputationBonus * 0.3));
-          let repGain = Math.ceil(3 * severityMult * satMult);
-          const trustGain = Math.ceil(10 * severityMult * satMult);
+          const baseRevenue = Math.floor(breed.baseFees * severityMult * (0.8 + 0.4 * satMult) * (1 + reputationBonus * 0.3));
+          const revenue = Math.floor(baseRevenue * comfortRevenueMult) + staffPersonalityBonus;
+          let repGain = Math.ceil(3 * severityMult * satMult) + comfortRepBonus;
+          const trustGain = Math.ceil(10 * severityMult * satMult) + (comfortRevenueMult > 1 ? 3 : 0);
 
           const diagnosisCorrect = bed.playerDiagnosis === beast.disease;
           if (diagnosisCorrect) {
@@ -411,10 +465,26 @@ export const useGameStore = create<GameState>()(
           get()._addTransaction("income", "诊金收入", revenue, `治愈 ${breed.name}·${beast.name}${evolved ? "(进化加成)" : ""}`);
           const evolveMsg = evolved ? " 🎉灵兽发生进化！额外获得加成！" : "";
           const diagMsg = diagnosisCorrect ? " 🔍诊断正确！" : "";
-          get().addNotification("success", `治愈成功！获得 ${revenue} 金，声望+${repGain}，亲密度+${trustGain}${diagMsg}${evolveMsg}`);
+          get().addNotification("success", `治愈成功！获得 ${revenue} 金，声望+${repGain}，亲密度+${trustGain}${diagMsg}${evolveMsg}${comfortMsg}`);
         } else if (bed.result === "fail" && beast) {
-          const penaltyMoney = Math.floor(s.money * 0.05) + 20;
-          const penaltyRep = 5;
+          const personality = PERSONALITIES[beast.personality];
+          const selectedComfort = bed.selectedComfort;
+
+          let failPenaltyMult = 1.0;
+          let comfortFailMsg = "";
+          if (selectedComfort && personality) {
+            if (personality.dislikedComfort.includes(selectedComfort)) {
+              failPenaltyMult = 1.3;
+              comfortFailMsg = " 安抚不当加重了灵兽的抵触情绪，惩罚加重！";
+            } else if (personality.preferredComfort.includes(selectedComfort)) {
+              failPenaltyMult = 0.8;
+              comfortFailMsg = " 虽然治疗失败，但安抚得当，主人并未过分苛责。";
+            }
+          }
+
+          const basePenalty = Math.floor(s.money * 0.05) + 20;
+          const penaltyMoney = Math.floor(basePenalty * failPenaltyMult);
+          const penaltyRep = Math.ceil(5 * failPenaltyMult);
           const breedName = breed?.name || "灵兽";
 
           const notes = rand(NOTES_FAIL);
@@ -441,7 +511,7 @@ export const useGameStore = create<GameState>()(
           }));
           get()._addTransaction("expense", "误诊赔偿", penaltyMoney, `${breedName}·${beast.name} 治疗失败赔偿`);
           const realDiseaseName = DISEASE_NAMES[beast.disease];
-          get().addNotification("error", `治疗失败！确诊为「${realDiseaseName}」。赔偿 ${penaltyMoney} 金，声望-${penaltyRep}`);
+          get().addNotification("error", `治疗失败！确诊为「${realDiseaseName}」。赔偿 ${penaltyMoney} 金，声望-${penaltyRep}${comfortFailMsg}`);
         }
 
         // Release staff & bed
@@ -456,6 +526,8 @@ export const useGameStore = create<GameState>()(
           currentPrescriptionHerbs: [],
           playerDiagnosis: null,
           startedAt: null,
+          selectedComfort: null,
+          comfortBonusApplied: false,
           beastSnapshot: null,
         } : b);
         const staffToRelease = bed.assignedStaffId;
@@ -527,7 +599,10 @@ export const useGameStore = create<GameState>()(
           const newQueue: Beast[] = state.waitingQueue.map(b => {
             const waited = b.waitHours + 1;
             let sev = b.severity;
-            let sat = Math.max(0, b.satisfaction - randomInt(2, 5));
+            const personalityDecay = PERSONALITIES[b.personality]?.satisfactionDecay ?? 1.0;
+            const baseDecay = randomInt(2, 5);
+            const adjustedDecay = Math.ceil(baseDecay * personalityDecay);
+            let sat = Math.max(0, b.satisfaction - adjustedDecay);
             if (waited > 4 && sev === "mild") sev = "moderate";
             else if (waited > 7 && sev === "moderate") sev = "severe";
             else if (waited > 10 && sev === "severe") sev = "critical";
@@ -562,6 +637,19 @@ export const useGameStore = create<GameState>()(
               if (b.assignedStaffId) {
                 const stf = state.staff.find(x => x.id === b.assignedStaffId);
                 finalRate += (stf?.skillLevel ?? 1) * 5;
+                // 员工与性格适配加成
+                if (b.beastSnapshot?.personality && stf?.goodWithPersonalities.includes(b.beastSnapshot.personality)) {
+                  finalRate += 8;
+                }
+              }
+              // 安抚方式加成/减成
+              if (b.selectedComfort && b.beastSnapshot?.personality) {
+                const personality = PERSONALITIES[b.beastSnapshot.personality];
+                if (personality.preferredComfort.includes(b.selectedComfort)) {
+                  finalRate += 10;
+                } else if (personality.dislikedComfort.includes(b.selectedComfort)) {
+                  finalRate -= 12;
+                }
               }
               // 疾病严重度减成
               const sev = b.beastSnapshot?.severity ?? "mild";

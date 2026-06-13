@@ -1,4 +1,4 @@
-import type { Breed, Herb, Prescription, DiseaseType, Staff } from "@/types/game";
+import type { Breed, Herb, Prescription, DiseaseType, Staff, Personality, ComfortMethod, PersonalityType, ComfortType } from "@/types/game";
 
 export const DISEASE_SYMPTOMS: Record<DiseaseType, string[]> = {
   fever: ["体温偏高", "无精打采", "食欲不振", "鼻子发干", "魔力发热"],
@@ -378,6 +378,7 @@ export const INITIAL_STAFF: Staff[] = [
     status: "idle",
     assignedBedId: null,
     dailyWage: 30,
+    goodWithPersonalities: ["timid", "clingy"],
   },
   {
     id: "staff_2",
@@ -388,6 +389,7 @@ export const INITIAL_STAFF: Staff[] = [
     status: "idle",
     assignedBedId: null,
     dailyWage: 50,
+    goodWithPersonalities: ["grumpy", "cold", "greedy"],
   },
 ];
 
@@ -438,3 +440,129 @@ export const NOTES_FAIL = [
   "只得转往大城市的高级诊所求治。",
   "灵兽对这里产生了阴影，不愿再踏入半步。",
 ];
+
+export const PERSONALITIES: Record<PersonalityType, Personality> = {
+  timid: {
+    id: "timid",
+    name: "胆小",
+    emoji: "😰",
+    description: "容易受惊，需要温柔的对待。等待时满意度下降较快，但对轻声细语和抚摸反应良好。",
+    satisfactionDecay: 1.5,
+    treatmentTimeMult: 1.2,
+    preferredComfort: ["soft_talk", "petting"],
+    dislikedComfort: ["play", "hold"],
+    compatibleStaffTrait: "温柔耐心",
+  },
+  grumpy: {
+    id: "grumpy",
+    name: "暴躁",
+    emoji: "😤",
+    description: "性格火爆，不耐烦。等待时满意度下降快，需要独处空间，不喜欢被过度接触。",
+    satisfactionDecay: 1.8,
+    treatmentTimeMult: 0.9,
+    preferredComfort: ["alone", "snack"],
+    dislikedComfort: ["petting", "hold"],
+    compatibleStaffTrait: "沉稳果断",
+  },
+  clingy: {
+    id: "clingy",
+    name: "黏人",
+    emoji: "🥺",
+    description: "喜欢与人亲近，害怕孤单。等待时满意度下降较慢，喜欢被抚摸和拥抱。",
+    satisfactionDecay: 0.7,
+    treatmentTimeMult: 1.1,
+    preferredComfort: ["petting", "hold", "play"],
+    dislikedComfort: ["alone"],
+    compatibleStaffTrait: "热情开朗",
+  },
+  greedy: {
+    id: "greedy",
+    name: "贪吃",
+    emoji: "🤤",
+    description: "对美食毫无抵抗力。零食安抚对其特别有效，治疗时也需要额外的食物奖励。",
+    satisfactionDecay: 1.0,
+    treatmentTimeMult: 1.0,
+    preferredComfort: ["snack", "petting"],
+    dislikedComfort: ["alone"],
+    compatibleStaffTrait: "善解人意",
+  },
+  cold: {
+    id: "cold",
+    name: "高冷",
+    emoji: "😎",
+    description: "性格孤傲，不喜欢过度热情。对安静的环境和轻声细语反应好，讨厌吵闹的玩耍。",
+    satisfactionDecay: 0.8,
+    treatmentTimeMult: 0.95,
+    preferredComfort: ["soft_talk", "alone"],
+    dislikedComfort: ["play", "hold"],
+    compatibleStaffTrait: "安静沉稳",
+  },
+  lively: {
+    id: "lively",
+    name: "活泼",
+    emoji: "🥳",
+    description: "精力旺盛，坐不住。喜欢玩耍和互动，治疗时间较短，但需要足够的活动空间。",
+    satisfactionDecay: 1.3,
+    treatmentTimeMult: 0.8,
+    preferredComfort: ["play", "petting"],
+    dislikedComfort: ["alone", "hold"],
+    compatibleStaffTrait: "活力充沛",
+  },
+};
+
+export const COMFORT_METHODS: Record<ComfortType, ComfortMethod> = {
+  soft_talk: {
+    id: "soft_talk",
+    name: "轻声细语",
+    emoji: "💬",
+    description: "用温柔的声音安慰灵兽，让它感到安心。对胆小和高冷的灵兽特别有效。",
+  },
+  petting: {
+    id: "petting",
+    name: "温柔抚摸",
+    emoji: "✋",
+    description: "轻轻抚摸灵兽的毛发，缓解紧张情绪。大多数灵兽都喜欢这种安抚方式。",
+  },
+  snack: {
+    id: "snack",
+    name: "零食安抚",
+    emoji: "🍖",
+    description: "用美味的小零食转移注意力，安抚情绪。对贪吃的灵兽效果拔群！",
+  },
+  alone: {
+    id: "alone",
+    name: "独处空间",
+    emoji: "🕊️",
+    description: "给灵兽一些安静的独处时间，让它自己平复心情。适合暴躁和高冷的灵兽。",
+  },
+  play: {
+    id: "play",
+    name: "陪伴玩耍",
+    emoji: "🎾",
+    description: "陪灵兽玩耍一会儿，转移病痛的注意力。适合活泼好动的灵兽。",
+  },
+  hold: {
+    id: "hold",
+    name: "温柔拥抱",
+    emoji: "🤗",
+    description: "轻轻抱住灵兽，给予安全感。对黏人的小灵兽效果很好。",
+  },
+};
+
+export const PERSONALITY_NAMES: Record<PersonalityType, string> = {
+  timid: "胆小",
+  grumpy: "暴躁",
+  clingy: "黏人",
+  greedy: "贪吃",
+  cold: "高冷",
+  lively: "活泼",
+};
+
+export const PERSONALITY_COLORS: Record<PersonalityType, string> = {
+  timid: "bg-blue-100 text-blue-700 border-blue-200",
+  grumpy: "bg-red-100 text-red-700 border-red-200",
+  clingy: "bg-pink-100 text-pink-700 border-pink-200",
+  greedy: "bg-amber-100 text-amber-700 border-amber-200",
+  cold: "bg-purple-100 text-purple-700 border-purple-200",
+  lively: "bg-green-100 text-green-700 border-green-200",
+};

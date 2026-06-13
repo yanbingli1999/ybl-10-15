@@ -1,6 +1,6 @@
 import { Clock, AlertTriangle, User, Heart, X } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
-import { BREEDS } from "@/data/gameData";
+import { BREEDS, PERSONALITIES, PERSONALITY_NAMES, PERSONALITY_COLORS } from "@/data/gameData";
 import { SEVERITY_NAMES, SEVERITY_COLORS, SEVERITY_BORDER, DISEASE_NAMES, ELEMENT_EMOJI } from "@/data/gameData";
 
 export function WaitingQueue() {
@@ -47,12 +47,15 @@ export function WaitingQueue() {
                   {breed?.emoji}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="font-semibold text-clinic-deep truncate">{beast.name}</span>
                     <span className="text-xs">{ELEMENT_EMOJI[breed?.element || "neutral"]}</span>
                     <span className={`tag border ${SEVERITY_COLORS[beast.severity]}`}>
                       {critical && <AlertTriangle className="w-3 h-3" />}
                       {SEVERITY_NAMES[beast.severity]}
+                    </span>
+                    <span className={`tag border text-[10px] ${PERSONALITY_COLORS[beast.personality]}`}>
+                      {PERSONALITIES[beast.personality]?.emoji} {PERSONALITY_NAMES[beast.personality]}
                     </span>
                   </div>
                   <div className="text-xs text-gray-600 space-y-0.5">

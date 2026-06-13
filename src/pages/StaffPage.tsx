@@ -1,7 +1,7 @@
 import { Users, Award, Briefcase, Clock, DollarSign, PlusCircle } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 import { BREEDS } from "@/data/gameData";
-import type { Bed } from "@/types/game";
+import type { Bed, PersonalityType } from "@/types/game";
 
 const STATUS_INFO = {
   idle: { label: "空闲中", cls: "bg-emerald-100 text-emerald-700 border-emerald-300", dot: "bg-emerald-500" },
@@ -24,6 +24,10 @@ export default function StaffPage() {
     const names = ["子墨", "婉清", "书瑶", "景天", "长卿", "雪见", "紫萱", "云霆"];
     const titles = ["护理员", "药童", "见习护士"];
     const emojis = ["👩‍⚕️", "👨‍⚕️", "👩‍🔬", "🧑‍⚕️", "👩‍🎓"];
+    const allPersonalities: PersonalityType[] = ["timid", "grumpy", "clingy", "greedy", "cold", "lively"];
+    const numGoodWith = Math.floor(Math.random() * 3) + 1;
+    const shuffled = [...allPersonalities].sort(() => Math.random() - 0.5);
+    const goodWithPersonalities = shuffled.slice(0, numGoodWith);
     const newStaff = {
       id: `staff_${Date.now()}`,
       name: names[Math.floor(Math.random() * names.length)],
@@ -33,6 +37,7 @@ export default function StaffPage() {
       status: "idle" as const,
       assignedBedId: null,
       dailyWage: 25,
+      goodWithPersonalities,
     };
     useGameStore.setState(s => ({
       money: s.money - 200,

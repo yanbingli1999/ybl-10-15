@@ -22,6 +22,10 @@ export type BedStatus = "empty" | "occupied" | "cleaning";
 
 export type TreatmentResult = "pending" | "success" | "fail" | "worsen";
 
+export type PersonalityType = "timid" | "grumpy" | "clingy" | "greedy" | "cold" | "lively";
+
+export type ComfortType = "soft_talk" | "petting" | "snack" | "alone" | "play" | "hold";
+
 export interface Breed {
   id: string;
   name: string;
@@ -51,6 +55,25 @@ export interface Prescription {
   name: string;
 }
 
+export interface Personality {
+  id: PersonalityType;
+  name: string;
+  emoji: string;
+  description: string;
+  satisfactionDecay: number;
+  treatmentTimeMult: number;
+  preferredComfort: ComfortType[];
+  dislikedComfort: ComfortType[];
+  compatibleStaffTrait: string;
+}
+
+export interface ComfortMethod {
+  id: ComfortType;
+  name: string;
+  emoji: string;
+  description: string;
+}
+
 export interface Beast {
   id: string;
   breedId: string;
@@ -65,6 +88,7 @@ export interface Beast {
   satisfaction: number;
   ownerName: string;
   arrivedAt: number;
+  personality: PersonalityType;
 }
 
 export interface Staff {
@@ -76,6 +100,7 @@ export interface Staff {
   status: StaffStatus;
   assignedBedId: string | null;
   dailyWage: number;
+  goodWithPersonalities: PersonalityType[];
 }
 
 export interface Bed {
@@ -90,6 +115,8 @@ export interface Bed {
   currentPrescriptionHerbs: string[];
   playerDiagnosis: DiseaseType | null;
   startedAt: number | null;
+  selectedComfort: ComfortType | null;
+  comfortBonusApplied: boolean;
   beastSnapshot: {
     id: string;
     breedId: string;
@@ -98,6 +125,7 @@ export interface Bed {
     severity: Severity;
     satisfaction: number;
     symptoms: string[];
+    personality: PersonalityType;
   } | null;
 }
 
